@@ -3,10 +3,18 @@ import json
 import xml.etree.ElementTree as ET
 from fastapi import FastAPI
 from pydantic import BaseModel
+
+from fastapi.middleware.cors import CORSMiddleware
 app = FastAPI() 
 
 
-
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 def nmap_command(alvo):
     # Flags selecionadas:
@@ -121,7 +129,6 @@ def nmap_command(alvo):
          dados_finais["erro"] = "Não foi possível analisar o XML do Nmap."
          return dados_finais
 
-alvo = "scanme.nmap.org"
     
 
 class Url(BaseModel):
@@ -132,5 +139,3 @@ def nmap(url:Url):
 
     resultado = nmap_command(url.url)
     return resultado
-
-
