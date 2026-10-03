@@ -39,3 +39,21 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+.cache/
+.config/
+.copilot/
+.ssh/
+.vscode-server/
+.env
+go/
+.bash_history
+.bash_logout
+.bashrc
+.profile
+.python_history
+.wget-hsts
+*.pyc
+backend/__pycache__/
+__pycache__/
+venv/
