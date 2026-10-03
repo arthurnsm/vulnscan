@@ -1,11 +1,17 @@
 import asyncio
+import subprocess
 import xml.etree.ElementTree as ET
 from typing import Dict, Any
 
-async def run_nmap(alvo: str) -> Dict[str, Any]:
+async def run_nmap(alvo: str, tipo_scan: str) -> Dict[str, Any]:
    
-    comando = ["nmap", "-sT", "-sV", "-sC", "-oX", "-", alvo]
-    
+    if tipo_scan == "fast_scan":
+        
+        comando = ["nmap", "-F", "-sV", "-T4", "-oX", "-", alvo]
+    else:
+        
+        comando = ["nmap", "-sT", "-sV", "-sC", "-oX", "-", alvo]
+
     dados_finais = {
         "alvo_solicitado": alvo,
         "status": "",
@@ -14,27 +20,23 @@ async def run_nmap(alvo: str) -> Dict[str, Any]:
     }
 
     try:
-        # Inicia o processo de forma assíncrona (não bloqueia a API)
-        processo = await asyncio.create_subprocess_exec(
-            *comando,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
-        )
-
-        # Aguarda a execução com o timeout de 900 segundos (15 minutos)
-        stdout, stderr = await asyncio.wait_for(
-            processo.communicate(),
+        # Inicia o processo em uma thread isolada para evitar NotImplementedError no Windows/Uvicorn
+        resultado = await asyncio.to_thread(
+            subprocess.run,
+            comando,
+            capture_output=True,
+            text=True,
             timeout=900.0
         )
 
         # Verifica se o Nmap retornou erro no sistema
-        if processo.returncode != 0:
+        if resultado.returncode != 0:
             dados_finais["status"] = "erro"
-            dados_finais["erro"] = stderr.decode().strip() or "Erro de execução."
+            dados_finais["erro"] = resultado.stderr.strip() or "Erro de execução."
             return dados_finais
 
         # Decodifica a saída
-        saida_bruta = stdout.decode()
+        saida_bruta = resultado.stdout
         inicio_xml = saida_bruta.find("<?xml")
         
         if inicio_xml == -1:
@@ -109,14 +111,7 @@ async def run_nmap(alvo: str) -> Dict[str, Any]:
         dados_finais["status"] = "sucesso"
         return dados_finais
 
-    # Tratamento de erros assíncronos e de sistema
-    except asyncio.TimeoutError:
-        # Importante: Se der timeout, precisamos matar o processo "zumbi" do nmap no sistema
-        try:
-            processo.kill()
-        except Exception:
-            pass
-            
+    except subprocess.TimeoutExpired:
         dados_finais["status"] = "erro_timeout"
         dados_finais["erro"] = "O scan demorou muito e foi cancelado (timeout de 900s)."
         return dados_finais
@@ -129,4 +124,9 @@ async def run_nmap(alvo: str) -> Dict[str, Any]:
     except ET.ParseError:
          dados_finais["status"] = "erro_parse"
          dados_finais["erro"] = "Não foi possível analisar o XML do Nmap."
+         return dados_finais
+         
+    except Exception as e:
+         dados_finais["status"] = "erro_execucao"
+         dados_finais["erro"] = f"{type(e).__name__}: {str(e)}"
          return dados_finais
