@@ -11,19 +11,22 @@ interface ScanPayload {
 interface BotaoProps {
   alvoUrl: string; 
   isDeepScan: boolean;
+  onScanChange?: (isScanning: boolean) => void;
+  disabled?: boolean;
 }
 
-export function Botao({ alvoUrl, isDeepScan }: BotaoProps) {
+export function Botao({ alvoUrl, isDeepScan, onScanChange, disabled }: BotaoProps) {
   const [loading, setLoading] = useState(false);
 
   async function Clique() {
     // Validação de segurança: se a string estiver vazia, nem tenta fazer o fetch
-    if (!alvoUrl) {
-      alert("A URL está vazia!");
+    if (!alvoUrl || disabled) {
+      alert("Alvo inválido!");
       return;
     }
 
     setLoading(true);
+    if (onScanChange) onScanChange(true);
 
    const payload = {
   alvoUrl: alvoUrl,
@@ -52,7 +55,7 @@ export function Botao({ alvoUrl, isDeepScan }: BotaoProps) {
   }
 
   return (
-    <button className=" hover:cursor-pointer bg-zinc-900 text-white p-2 rounded disabled:opacity-50" onClick={Clique} disabled={loading}>
+    <button className="hover:cursor-pointer bg-zinc-900 text-white p-2 rounded disabled:opacity-50" onClick={Clique} disabled={loading || disabled}>
       {loading ? "Escaneando..." : "Escanear"}
     </button>
   );
