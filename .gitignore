@@ -2,7 +2,7 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 =======
 >>>>>>> backend
-
+.agent
 # dependencies
 /node_modules
 /.pnp
@@ -62,3 +62,6 @@ go/
 backend/__pycache__/
 __pycache__/
 venv/
+LICENSE 
+README.md
+CHANGELOG.md
