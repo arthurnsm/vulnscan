@@ -6,12 +6,11 @@ import { Botao } from "./submit";
 import { Navbar } from "../components/Navbar";
 import { FeatureRow } from "../components/FeatureRow";
 import { ScannerLoader } from "../components/ScannerLoader";
+import { AuditReportVisual } from "../components/AuditReportVisual";
+import { SequentialPipelineVisual } from "../components/SequentialPipelineVisual";
 import { ShieldAlert, Terminal, ArrowRight } from "lucide-react";
 import Link from "next/link";
-import { Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
-
-const jakarta = Plus_Jakarta_Sans({ subsets: ["latin"], weight: ["400", "500", "600", "700"] });
-const jetBrainsMono = JetBrains_Mono({ subsets: ["latin"], weight: ["400", "500"] });
+import { jakarta, jetBrainsMono } from "./fonts";
 
 // Componente das cobrinhas: trilhas fixas, direções aleatórias
 function Snake({ isVertical, track }: { isVertical: boolean, track: number }) {
@@ -124,7 +123,7 @@ export default function Home() {
             animate={{
               WebkitMaskImage: `radial-gradient(250px circle at ${mousePosition.x}px ${mousePosition.y}px, black 0%, transparent 100%)`,
               maskImage: `radial-gradient(250px circle at ${mousePosition.x}px ${mousePosition.y}px, black 0%, transparent 100%)`
-            }}
+            } as any}
             transition={{ type: "tween", ease: "linear", duration: 0 }}
           />
         </div>
@@ -132,7 +131,7 @@ export default function Home() {
         <Navbar />
 
         {/* Hero Content - Alterado de min-h-[75vh] para min-h-[85vh] para empurrar o conteúdo inferior para baixo */}
-        <main className="relative z-10 flex flex-col items-center justify-center w-full px-6 pt-10 pb-28 min-h-[85vh]">
+        <main className="relative z-10 flex flex-col items-center justify-center w-full px-4 md:px-8 pt-10 pb-28 min-h-[85vh]">
           <motion.div
             layout
             initial="hidden"
@@ -145,7 +144,7 @@ export default function Home() {
                 }
               }
             }}
-            className="flex flex-col items-center text-center max-w-5xl w-full gap-8"
+            className="flex flex-col items-center text-center max-w-[1800px] w-full gap-8"
           >
             <motion.div
               layout
@@ -200,7 +199,7 @@ export default function Home() {
             <motion.div 
               layout
               transition={{ duration: 1.5, ease: [0.22, 1, 0.36, 1] }}
-              className={`w-full max-w-3xl relative transition-all duration-[1500ms] ${searchActive ? 'mt-0' : 'mt-4 sm:mt-16'}`}
+              className={`w-full max-w-5xl relative transition-all duration-[1500ms] ${searchActive ? 'mt-0' : 'mt-4 sm:mt-16'}`}
             >
               <motion.div 
                 variants={{
@@ -292,118 +291,15 @@ export default function Home() {
         <div className="w-full max-w-[1920px] mx-auto px-4 lg:px-8 2xl:px-12 flex flex-col gap-32 lg:gap-48 relative z-10">
           
           <FeatureRow 
-            title="Dossiês de Vulnerabilidade"
-            description="Transforme milhares de varreduras em relatórios cirúrgicos. Analise pontuações de risco e obtenha o mapeamento detalhado da sua superfície de ataque para priorizar as correções antes do próximo deploy."
-            
+            title="Relatório de Vulnerabilidades"
+            description="Transforme uma simples URL em relatórios completos num piscar de olhos, te ajudando a ter uma melhor visão durante o processo de coleta de informações"
             reverse={false}
-            visualNode={(
-              <div className="w-full h-full absolute inset-0 flex flex-col sm:flex-row items-center justify-center bg-[#0a0a0a] overflow-hidden p-8 sm:p-12 gap-8 lg:gap-16">
-                
-                {/* Lado Esquerdo: Bloco de Texto (Skeleton Loader Gigante) */}
-                <div className="flex flex-col w-full sm:w-[45%] h-full justify-center gap-6 z-10 relative">
-                  
-                  {/* Tag Mono no topo do skeleton */}
-                  <div className="absolute top-[8%] left-0 text-[10px] font-mono text-zinc-600 tracking-widest border border-zinc-800/80 px-2 py-1 rounded">
-                    SYS.LOG_REPORT
-                  </div>
-
-                  {/* Título Skeleton - 2 Linhas Grandes empurradas mais para cima */}
-                  <div className="flex flex-col gap-3 mb-12 absolute top-[18%] w-full">
-                    <motion.div className="h-5 lg:h-7 bg-zinc-700 rounded-full w-4/5" animate={{ opacity: [0.4, 0.8, 0.4] }} transition={{ duration: 2.5, repeat: Infinity, delay: 0 }} />
-                    <motion.div className="h-5 lg:h-7 bg-zinc-700 rounded-full w-3/5" animate={{ opacity: [0.4, 0.8, 0.4] }} transition={{ duration: 2.5, repeat: Infinity, delay: 0.2 }} />
-                  </div>
-                  
-                  {/* Parágrafos Skeleton - Mesmo tamanho (Centralizados verticalmente) */}
-                  <div className="flex flex-col gap-4 mt-16">
-                    {Array.from({ length: 6 }).map((_, i) => (
-                      <motion.div key={i} className="h-3 lg:h-4 bg-zinc-700/80 rounded-full w-full" animate={{ opacity: [0.3, 0.7, 0.3] }} transition={{ duration: 3, repeat: Infinity, delay: 0.4 + i * 0.2 }} />
-                    ))}
-                    <motion.div className="h-3 lg:h-4 bg-zinc-700/80 rounded-full w-2/3" animate={{ opacity: [0.3, 0.7, 0.3] }} transition={{ duration: 3, repeat: Infinity, delay: 1.6 }} />
-                  </div>
-                  
-                </div>
-
-                {/* Lado Direito: Gráficos (Sliders + Meio Círculo) */}
-                <div className="flex flex-col w-full sm:w-[55%] h-full justify-center gap-12 z-10 sm:border-l border-zinc-800/50 sm:pl-8 lg:pl-12 pt-8 sm:pt-0 border-t sm:border-t-0 mt-8 sm:mt-0">
-                  
-                  {/* Topo do Lado Direito: 5 Sliders Mais Altos */}
-                  <div className="flex flex-col w-full gap-6">
-                    {[
-                      { labelWidth: "w-24", valueWidth: "w-8", value: 90, delay: 0.2 },
-                      { labelWidth: "w-32", valueWidth: "w-6", value: 65, delay: 0.4 },
-                      { labelWidth: "w-20", valueWidth: "w-10", value: 85, delay: 0.6 },
-                      { labelWidth: "w-28", valueWidth: "w-12", value: 45, delay: 0.8 },
-                      { labelWidth: "w-16", valueWidth: "w-6", value: 75, delay: 1.0 }
-                    ].map((item, i) => (
-                      <div key={i} className="flex flex-col gap-2.5 group cursor-default">
-                        <div className="flex justify-between items-center mb-0.5">
-                          <motion.div className={`h-2.5 lg:h-3 bg-zinc-800 rounded-full ${item.labelWidth}`} animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 2, repeat: Infinity, delay: item.delay }} />
-                          <motion.div className={`h-2.5 lg:h-3 bg-zinc-800 rounded-full ${item.valueWidth}`} animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 2, repeat: Infinity, delay: item.delay + 0.3 }} />
-                        </div>
-                        <div className="w-full h-3 lg:h-4 bg-zinc-900 rounded-full border border-zinc-800/50">
-                          <motion.div 
-                            className="h-full bg-purple-500 shadow-[0_0_12px_rgba(168,85,247,0.5)] rounded-full group-hover:scale-y-150 transition-all duration-300 origin-left" 
-                            initial={{ width: "0%" }} 
-                            whileInView={{ width: `${item.value}%` }} 
-                            viewport={{ once: true }} 
-                            transition={{ duration: 1.5, ease: "easeOut", delay: item.delay }} 
-                          />
-                        </div>
-                      </div>
-                    ))}
-                    
-                  </div>
-
-                  {/* Base do Lado Direito: Skeletons Duplos + Score Gauge */}
-                  <div className="relative w-full flex flex-row items-end justify-between pt-4">
-                    
-                    {/* 6 Skeletons Menores (Esquerda da Base) divididos em 2 colunas */}
-                    <div className="flex flex-row gap-6 w-1/2 pb-1 cursor-default">
-                      <div className="flex flex-col gap-3.5 w-full">
-                        <motion.div className="h-2 lg:h-2.5 bg-zinc-800 rounded-full w-full" animate={{ opacity: [0.3, 0.7, 0.3] }} transition={{ duration: 2, repeat: Infinity, delay: 0.2 }} />
-                        <motion.div className="h-2 lg:h-2.5 bg-zinc-800 rounded-full w-4/5" animate={{ opacity: [0.3, 0.7, 0.3] }} transition={{ duration: 2, repeat: Infinity, delay: 0.4 }} />
-                        <motion.div className="h-2 lg:h-2.5 bg-zinc-800 rounded-full w-5/6" animate={{ opacity: [0.3, 0.7, 0.3] }} transition={{ duration: 2, repeat: Infinity, delay: 0.6 }} />
-                      </div>
-                      <div className="flex flex-col gap-3.5 w-full">
-                        <motion.div className="h-2 lg:h-2.5 bg-zinc-800 rounded-full w-11/12" animate={{ opacity: [0.3, 0.7, 0.3] }} transition={{ duration: 2, repeat: Infinity, delay: 0.3 }} />
-                        <motion.div className="h-2 lg:h-2.5 bg-zinc-800 rounded-full w-3/4" animate={{ opacity: [0.3, 0.7, 0.3] }} transition={{ duration: 2, repeat: Infinity, delay: 0.5 }} />
-                        <motion.div className="h-2 lg:h-2.5 bg-zinc-800 rounded-full w-4/5" animate={{ opacity: [0.3, 0.7, 0.3] }} transition={{ duration: 2, repeat: Infinity, delay: 0.7 }} />
-                      </div>
-                    </div>
-
-                    {/* Score Gauge (Direita da Base - Tom Sólido Roxo) */}
-                    <div className="relative w-1/2 flex flex-col items-end justify-end group cursor-default">
-                      <motion.div className="absolute inset-0 bg-purple-500/10 rounded-full blur-3xl -z-10 right-0 transition-colors duration-300" initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} transition={{ duration: 1, delay: 0.5 }} />
-                      <div className="relative w-40 lg:w-56 aspect-[2/1] flex flex-col items-end justify-end overflow-visible origin-bottom-right">
-                        <svg viewBox="0 0 100 50" className="absolute top-0 left-0 w-full h-full overflow-visible">
-                          <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="#27272a" strokeWidth="8" strokeLinecap="round" />
-                          <motion.path 
-                            d="M 10 50 A 40 40 0 0 1 90 50" 
-                            fill="none" 
-                            stroke="#a855f7" 
-                            strokeWidth="8" 
-                            strokeLinecap="round" 
-                            className="group-hover:[stroke-width:14px] transition-all duration-300"
-                            initial={{ pathLength: 0 }} 
-                            whileInView={{ pathLength: 0.78 }} 
-                            viewport={{ once: true }} 
-                            transition={{ duration: 1.2, ease: "easeOut", delay: 0.1 }} 
-                          />
-                        </svg>
-                      </div>
-                    </div>
-                  </div>
-
-                </div>
-
-              </div>
-            )}
+            visualNode={<AuditReportVisual />}
           />
 
           <FeatureRow 
             title="Pipeline de Varredura Sequencial"
-            description="Sua URL é submetida a uma esteira rigorosa de testes. Ferramentas clássicas de pentest são executadas em cascata — onde a saída de uma varredura engatilha imediatamente o próximo vetor de ataque."
-            
+            description="Sua URL é submetida a uma bateria de testes rigorosa. Ferramentas clássicas de pentest são executadas sequencialmente — onde a saída de uma varredura engatilha imediatamente o próximo vetor de ataque."
             reverse={true}
             actionNode={
               <Link href="/docs" className="inline-flex items-center gap-2 px-6 py-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-white font-medium rounded-lg transition-colors group">
@@ -411,88 +307,7 @@ export default function Home() {
                 <ArrowRight className="w-4 h-4 text-zinc-400 group-hover:text-white group-hover:translate-x-1 transition-all" />
               </Link>
             }
-            visualNode={(
-              <div className="w-full h-full absolute inset-0 flex flex-col items-center justify-center p-8 bg-[#0a0a0a] overflow-hidden">
-                
-                {/* Background Grid Espaçado */}
-                <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:3rem_3rem]" />
-                
-                {/* Diagrama de Fluxo (Flowchart) */}
-                <div className="relative flex flex-col items-center justify-between gap-4 z-10 w-full max-w-sm h-full py-6">
-                  
-                  {/* Trilha Central (Fundo da Linha) */}
-                  <div className="absolute top-10 bottom-10 left-1/2 -translate-x-1/2 w-0.5 bg-zinc-800/60 -z-10 overflow-hidden">
-                    {/* Feixe de Luz descendo pela trilha */}
-                    <motion.div 
-                      className="w-full h-1/3 bg-gradient-to-b from-transparent via-purple-500 to-transparent absolute"
-                      animate={{ top: ["-30%", "100%"] }}
-                      transition={{ duration: 2.5, repeat: Infinity, ease: "linear" }}
-                    />
-                  </div>
-
-                  {/* Node 1: Envio da URL */}
-                  <motion.div 
-                    initial={{ opacity: 0, y: -20 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }}
-                    className="w-full group cursor-default hover:scale-[1.02] transition-transform duration-300"
-                  >
-                    <div className="w-full bg-zinc-950 border border-zinc-800 group-hover:border-purple-500/50 p-4 rounded-xl flex items-center justify-center gap-3 shadow-lg transition-colors relative">
-                      <div className="absolute -left-3 w-1.5 h-1/2 bg-purple-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-[0_0_10px_rgba(168,85,247,0.8)]" />
-                      <Terminal className="w-5 h-5 text-zinc-500 group-hover:text-purple-400 transition-colors" />
-                      <span className="text-zinc-300 font-mono text-sm tracking-tight">https://alvo.com</span>
-                    </div>
-                  </motion.div>
-
-                  {/* Node 2: Nmap */}
-                  <motion.div 
-                    initial={{ opacity: 0, y: -20 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.4 }}
-                    className="w-11/12 group cursor-default hover:scale-[1.05] transition-transform duration-300"
-                  >
-                    <div className="w-full bg-zinc-900 border border-zinc-800 group-hover:border-purple-500/50 p-4 rounded-xl flex items-center justify-between shadow-lg transition-colors relative">
-                      <div className="absolute -left-3 w-1.5 h-1/2 bg-purple-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-[0_0_10px_rgba(168,85,247,0.8)]" />
-                      <span className="text-zinc-400 font-mono text-xs">01. Port Scanning</span>
-                      <span className="text-purple-400 font-bold text-sm tracking-wider">NMAP</span>
-                    </div>
-                  </motion.div>
-
-                  {/* Node 3: FFuf */}
-                  <motion.div 
-                    initial={{ opacity: 0, y: -20 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.6 }}
-                    className="w-11/12 group cursor-default hover:scale-[1.05] transition-transform duration-300"
-                  >
-                    <div className="w-full bg-zinc-900 border border-zinc-800 group-hover:border-purple-500/50 p-4 rounded-xl flex items-center justify-between shadow-lg transition-colors relative">
-                      <div className="absolute -left-3 w-1.5 h-1/2 bg-purple-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-[0_0_10px_rgba(168,85,247,0.8)]" />
-                      <span className="text-zinc-400 font-mono text-xs">02. Directory Fuzzing</span>
-                      <span className="text-purple-400 font-bold text-sm tracking-wider">FFUF</span>
-                    </div>
-                  </motion.div>
-
-                  {/* Node 4: httpx */}
-                  <motion.div 
-                    initial={{ opacity: 0, y: -20 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.8 }}
-                    className="w-11/12 group cursor-default hover:scale-[1.05] transition-transform duration-300"
-                  >
-                    <div className="w-full bg-zinc-900 border border-zinc-800 group-hover:border-purple-500/50 p-4 rounded-xl flex items-center justify-between shadow-lg transition-colors relative">
-                      <div className="absolute -left-3 w-1.5 h-1/2 bg-purple-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-[0_0_10px_rgba(168,85,247,0.8)]" />
-                      <span className="text-zinc-400 font-mono text-xs">03. Alive Probing</span>
-                      <span className="text-purple-400 font-bold text-sm tracking-wider">HTTPX</span>
-                    </div>
-                  </motion.div>
-
-                  {/* Node 5: Report Generation */}
-                  <motion.div 
-                    initial={{ opacity: 0, y: -20 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 1.0 }}
-                    className="w-full group cursor-default hover:scale-[1.02] transition-transform duration-300 mt-2"
-                  >
-                    <div className="w-full bg-zinc-950 border border-purple-500/30 group-hover:border-purple-500/80 p-4 rounded-xl flex items-center justify-center gap-3 shadow-[0_0_15px_rgba(168,85,247,0.15)] transition-colors relative">
-                      <div className="absolute -left-3 w-1.5 h-1/2 bg-purple-500 rounded-full opacity-100 shadow-[0_0_10px_rgba(168,85,247,0.8)]" />
-                      <ShieldAlert className="w-5 h-5 text-purple-400" />
-                      <span className="text-purple-300 font-bold text-sm tracking-tight">Gerar Relatório Final</span>
-                    </div>
-                  </motion.div>
-                  
-                </div>
-              </div>
-            )}
+            visualNode={<SequentialPipelineVisual />}
           />
 
         </div>

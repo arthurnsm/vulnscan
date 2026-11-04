@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 export interface FeatureRowProps {
   title: string;
   description: string;
-  icon: React.ReactNode;
+  icon?: React.ReactNode;
   reverse?: boolean;
   visualNode: React.ReactNode;
   actionNode?: React.ReactNode;
