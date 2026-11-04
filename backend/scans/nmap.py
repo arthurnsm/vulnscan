@@ -6,11 +6,11 @@ from typing import Dict, Any
 async def run_nmap(alvo: str, tipo_scan: str) -> Dict[str, Any]:
    
     if tipo_scan == "fast_scan":
-        
-        comando = ["nmap", "-F", "-sV", "-T4", "-oX", "-", alvo]
+        # Fast scan: Apenas portas comuns (-F), detecção de versão rápida (--version-light) e sem scripts padrão
+        comando = ["nmap", "-F", "-sV", "--version-light", "-T4", "-oX", "-", alvo]
     else:
-        
-        comando = ["nmap", "-sT", "-sV", "-sC", "-oX", "-", alvo]
+        # Deep scan: Scan completo com scripts padrão (-sC)
+        comando = ["nmap", "-sT", "-sV", "-sC", "-p-", "-T4", "-oX", "-", alvo]
 
     dados_finais = {
         "alvo_solicitado": alvo,
@@ -88,11 +88,12 @@ async def run_nmap(alvo: str, tipo_scan: str) -> Dict[str, Any]:
                         info_extra = servico.get('extrainfo')
 
                     scripts_executados = []
-                    for script in port.findall('script'):
-                        scripts_executados.append({
-                            "id_script": script.get('id'),
-                            "resultado": script.get('output').strip()
-                        })
+                    if tipo_scan != "fast_scan":
+                        for script in port.findall('script'):
+                            scripts_executados.append({
+                                "id_script": script.get('id'),
+                                "resultado": script.get('output').strip()
+                            })
 
                     info_host["portas"].append({
                         "porta": int(id_porta),
