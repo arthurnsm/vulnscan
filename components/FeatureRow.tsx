@@ -20,7 +20,10 @@ export function FeatureRow({
   actionNode
 }: FeatureRowProps) {
   return (
-    <div className={`flex flex-col ${reverse ? 'lg:flex-row-reverse' : 'lg:flex-row'} items-center gap-12 lg:gap-16 w-full`}>
+    <div
+      data-feature-row=""
+      className={`flex flex-col ${reverse ? 'lg:flex-row-reverse' : 'lg:flex-row'} items-center gap-6 lg:gap-8 w-full`}
+    >
       
       {/* Box de Animação/Visual */}
       <motion.div 
@@ -28,14 +31,15 @@ export function FeatureRow({
         whileInView={{ opacity: 1, x: 0 }}
         viewport={{ once: true, margin: "-100px" }}
         transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-        className="w-full lg:w-[55%] min-h-[500px] lg:min-h-[600px] rounded-[2.5rem] flex items-center justify-center overflow-hidden relative shadow-2xl border border-zinc-800/80 bg-gradient-to-b from-[#111111] to-[#0A0A0A]"
+        className="w-full lg:w-[55%] min-h-[500px] lg:min-h-[600px] rounded-[2.5rem] flex items-center justify-center overflow-hidden relative m-0 p-0"
       >
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent  to-transparent" />
         {visualNode}
       </motion.div>
 
       {/* Box de Texto */}
-      <motion.div 
+      <motion.div
+        data-feature-text=""
         initial={{ opacity: 0, x: reverse ? -50 : 50 }}
         whileInView={{ opacity: 1, x: 0 }}
         viewport={{ once: true, margin: "-100px" }}
@@ -45,7 +49,7 @@ export function FeatureRow({
         
       
 
-        <h3 className="text-4xl lg:text-5xl font-semibold text-white tracking-tight leading-tight">{title}</h3>
+        <h3 className="text-4xl lg:text-5xl font-semibold tracking-tight leading-tight bg-gradient-to-b from-white to-zinc-500 bg-clip-text text-transparent">{title}</h3>
         <p className="text-lg lg:text-xl text-zinc-300 leading-relaxed">{description}</p>
         
         {actionNode && (

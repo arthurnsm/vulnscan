@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { motion, useInView, AnimatePresence } from "framer-motion";
 import { Botao } from "./submit";
 import { Navbar } from "../components/Navbar";
+import { Footer } from "../components/Footer";
 import { FeatureRow } from "../components/FeatureRow";
 import { ScannerLoader } from "../components/ScannerLoader";
 import { AuditReportVisual } from "../components/AuditReportVisual";
@@ -131,7 +132,7 @@ export default function Home() {
         <Navbar />
 
         {/* Hero Content - Alterado de min-h-[75vh] para min-h-[85vh] para empurrar o conteúdo inferior para baixo */}
-        <main className="relative z-10 flex flex-col items-center justify-center w-full px-4 md:px-8 pt-10 pb-28 min-h-[85vh]">
+        <main className="relative z-10 flex flex-col items-center justify-center w-full px-4 md:px-[200px] lg:px-[224px] pt-10 pb-28 min-h-[85vh]">
           <motion.div
             layout
             initial="hidden"
@@ -288,7 +289,7 @@ export default function Home() {
 
       <section className="relative w-full bg-[#050505] flex-1 pt-32 pb-40 overflow-hidden">
         
-        <div className="w-full max-w-[1920px] mx-auto px-4 lg:px-8 2xl:px-12 flex flex-col gap-32 lg:gap-48 relative z-10">
+        <div className="w-full px-4 md:px-[200px] lg:px-[224px] flex flex-col gap-32 lg:gap-48 relative z-10">
           
           <FeatureRow 
             title="Relatório de Vulnerabilidades"
@@ -312,6 +313,8 @@ export default function Home() {
 
         </div>
       </section>
+
+      <Footer />
 
     </div>
   );
