@@ -64,6 +64,7 @@ export default function Home() {
   const [isScanning, setIsScanning] = useState(false);
   const [urlError, setUrlError] = useState<string | null>(null);
   const [stepsStatus, setStepsStatus] = useState<Record<string, ToolStepData>>({});
+  const [completedOrder, setCompletedOrder] = useState<string[]>([]);
   const [activeMessage, setActiveMessage] = useState<string>("");
 
   const handleStepUpdate = (evt: { etapa: string; status: "pending" | "running" | "completed" | "error"; mensagem?: string; resultado?: any }) => {
@@ -75,6 +76,9 @@ export default function Home() {
         resultado: evt.resultado,
       },
     }));
+    if (evt.status === "completed" || evt.status === "error") {
+      setCompletedOrder((prev) => (prev.includes(evt.etapa) ? prev : [...prev, evt.etapa]));
+    }
     if (evt.mensagem) {
       setActiveMessage(evt.mensagem);
     }
@@ -316,6 +320,7 @@ export default function Home() {
                         if (scanning) {
                           setSearchActive(true);
                           setStepsStatus({});
+                          setCompletedOrder([]);
                           setActiveMessage("");
                         }
                       }}
@@ -353,6 +358,7 @@ export default function Home() {
                 <ScannerLoader
                   isDeepScan={isDeepScan}
                   stepsStatus={stepsStatus}
+                  completedOrder={completedOrder}
                   activeMessage={activeMessage}
                 />
               )}
