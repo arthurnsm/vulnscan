@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 import uvicorn
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,6 +15,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from routes.deep_orchestrator import DeepOrquestrator
 from routes.fast_orchestrator import FastOrquestrator
+from scans.ping import ping_host
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  
@@ -23,12 +25,47 @@ app.add_middleware(
 )
 class buttonPayload(BaseModel):
         alvoUrl: str
-        isDeepScan: bool
+        isDeepScan: bool = False
+
+class pingPayload(BaseModel):
+        alvoUrl: str
+
+
+@app.post("/api/ping")
+async def PingAlvo(dados: pingPayload):
+      validacao = await ping_host(dados.alvoUrl)
+      if not validacao["ativo"]:
+            return JSONResponse(
+                  status_code=400,
+                  content={
+                        "status": "erro",
+                        "ativo": False,
+                        "host": validacao["host"],
+                        "erro": validacao["erro"] or "O host informado não existe."
+                  }
+            )
+      return {
+            "status": "sucesso",
+            "ativo": True,
+            "host": validacao["host"]
+      }
 
 
 @app.post("/api/scan")
 
 async def Scan(dados: buttonPayload):
+      validacao = await ping_host(dados.alvoUrl)
+      if not validacao["ativo"]:
+            return JSONResponse(
+                  status_code=400,
+                  content={
+                        "status": "erro",
+                        "ativo": False,
+                        "host": validacao["host"],
+                        "erro": validacao["erro"] or "O host informado não existe."
+                  }
+            )
+
       if dados.isDeepScan == False:
             result = await FastOrquestrator(dados.alvoUrl)
             print(result)

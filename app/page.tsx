@@ -62,6 +62,7 @@ export default function Home() {
   const [hideTooltip, setHideTooltip] = useState(false);
   const [searchActive, setSearchActive] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
+  const [urlError, setUrlError] = useState<string | null>(null);
 
   const tooltipRef = useRef<HTMLDivElement>(null);
 
@@ -209,7 +210,11 @@ export default function Home() {
                 }}
                 className="relative"
               >
-                <div className="relative bg-[#0A0A0A]/90 backdrop-blur-2xl border border-zinc-800/80 rounded-[2rem] sm:rounded-full p-2 flex flex-col sm:flex-row items-center gap-2 shadow-2xl transition-colors duration-500 hover:border-zinc-700">
+                <div className={`relative bg-[#0A0A0A]/90 backdrop-blur-2xl border rounded-[2rem] sm:rounded-full p-2 flex flex-col sm:flex-row items-center gap-2 shadow-2xl transition-colors duration-500 ${
+                  urlError
+                    ? "border-red-500 hover:border-red-400 shadow-[0_0_25px_rgba(239,68,68,0.15)]"
+                    : "border-zinc-800/80 hover:border-zinc-700"
+                }`}>
                   <div className={`hidden sm:flex items-center pl-6 pr-2 text-zinc-400 text-sm ${jetBrainsMono.className}`}>
                     URL
                   </div>
@@ -217,13 +222,17 @@ export default function Home() {
                     type="url"
                     id="url"
                     value={textUrl}
-                    onChange={(e) => setTextUrl(e.target.value)}
+                    onChange={(e) => {
+                      setTextUrl(e.target.value);
+                      if (urlError) setUrlError(null);
+                    }}
                     onFocus={() => setSearchActive(true)}
                     placeholder="alvo.com"
                     className={`flex-1 w-full bg-transparent border-none text-white text-base md:text-lg focus:outline-none  focus-visible:transparent rounded-xl px-4 sm:px-4 py-3 sm:py-0 placeholder:text-zinc-400 ${jetBrainsMono.className}`}
                     autoComplete="off"
                     spellCheck="false"
                     aria-label="URL alvo para auditoria"
+                    aria-invalid={Boolean(urlError)}
                   />
                   <div className="flex items-center gap-3 px-4 sm:border-l sm:border-zinc-800 h-14 sm:h-12 w-full sm:w-auto justify-between sm:justify-center border-t sm:border-t-0 border-zinc-800 pt-3 sm:pt-0 pb-1 sm:pb-0">
                     <span className="text-xs font-medium text-zinc-400 w-12 text-right transition-colors" style={{ color: !isDeepScan ? '#D4D4D8' : '' }}>Rápido</span>
@@ -266,9 +275,31 @@ export default function Home() {
                     </span>
                   </div>
                   <div className="shrink-0 w-full sm:w-auto mt-2 sm:mt-0 [&>button]:!w-full [&>button]:sm:!w-auto [&>button]:!rounded-full [&>button]:!bg-white [&>button]:!text-black [&>button:not(:disabled)]:hover:!bg-zinc-200 [&>button]:!px-8 [&>button]:!py-3 [&>button]:!h-[44px] [&>button]:!font-semibold [&>button]:!tracking-wide [&>button]:!transition-colors [&>button]:!border-none [&>button]:focus-visible:!ring-2 [&>button]:focus-visible:!ring-purple-500/50 [&>button:disabled]:!bg-zinc-800/80 [&>button:disabled]:!text-zinc-400">
-                    <Botao alvoUrl={textUrl} isDeepScan={isDeepScan} disabled={!/^(?:https?:\/\/)?(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?:\/.*)?$|^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$|^localhost$/.test(textUrl.trim())} onScanChange={(scanning) => { setIsScanning(scanning); if(scanning) setSearchActive(true); }} />
+                    <Botao
+                      alvoUrl={textUrl}
+                      isDeepScan={isDeepScan}
+                      disabled={!/^(?:https?:\/\/)?(?:(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}|(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)|localhost)(?::\d{1,5})?(?:\/.*)?$/.test(textUrl.trim())}
+                      onErrorChange={setUrlError}
+                      onScanChange={(scanning) => { setIsScanning(scanning); if(scanning) setSearchActive(true); }}
+                    />
                   </div>
                 </div>
+
+                <AnimatePresence>
+                  {urlError && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8 }}
+                      transition={{ duration: 0.25 }}
+                      className="flex items-center justify-center gap-2 mt-3 text-red-400 text-sm font-medium"
+                      role="alert"
+                    >
+                    
+                      <span>{urlError}</span>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </motion.div>
             </motion.div>
 
