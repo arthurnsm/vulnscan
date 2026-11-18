@@ -226,46 +226,6 @@ O backend disponibiliza os seguintes endpoints:
 
 A execução dos scanners é concorrente após a etapa inicial de validação. O orquestrador recebe os resultados individuais, emite os eventos correspondentes e constrói o relatório consolidado.
 
-### Estrutura do repositório
-
-```text
-app/
-  api/
-    ping/route.ts
-    scan/stream/route.ts
-  docs/page.tsx
-  page.tsx
-  submit.tsx
-
-backend/
-  api/main.py
-  routes/
-    fast_orchestrator.py
-    deep_orchestrator.py
-    stream_orchestrator.py
-  scans/
-    ping.py
-    nmap.py
-    httpx.py
-    ffuf.py
-    nuclei.py
-  wordlists/
-    fast_fuzzing.txt
-    deep_fuzzing.txt
-    ffuz.txt
-
-components/
-  ScannerLoader.tsx
-  Navbar.tsx
-  Footer.tsx
-
-pages/
-  report.tsx
-
-requirements.txt
-package.json
-README.md
-```
 
 ## Instalação
 
@@ -361,9 +321,9 @@ A interface permite consultar, filtrar e exportar os achados em JSON. A exporta�
 
 O último relatório é armazenado no navegador. Quando não existem resultados recentes, a página apresenta dados demonstrativos identificados como exemplo.
 
-## Limitações atuais
+## Próximos passos
 
-O projeto continua em desenvolvimento e possui algumas limitações conhecidas:
+O projeto continua em desenvolvimento e ainda possui algumas limitações:
 
 - A validação inicial depende de resposta a ping ICMP. Um host pode oferecer HTTP/HTTPS e ainda assim não responder a ICMP.
 - Os tempos configurados nos scanners não garantem um tempo máximo para o processo completo.
