@@ -98,12 +98,12 @@ const mockFallback: ReportModel = {
   summary: {
     critical: 2,
     high: 2,
-    medium: 2,
+    medium: 1,
     low: 0,
     info: 1,
   },
   stats: {
-    openPorts: 2,
+    openPorts: 1,
     discoveredRoutes: 1,
     cvesDetected: 3,
   },
@@ -180,18 +180,6 @@ const mockFallback: ReportModel = {
       recommendation:
         'Adicione o header "Strict-Transport-Security: max-age=31536000; includeSubDomains" em todas as respostas HTTPS.',
       tool: 'Nuclei',
-    },
-    {
-      id: 'PORT-443',
-      title: 'Porta Aberta: 443/tcp (https)',
-      severity: 'Médio',
-      endpoint: ':443',
-      status: 'Aberto',
-      details:
-        'Servidor web HTTPS respondendo em nginx 1.24.0. Verifique se TLS 1.0/1.1 foram desabilitados.',
-      recommendation:
-        'Mantenha apenas TLS 1.2+ habilitado e configure cifras modernas com Forward Secrecy.',
-      tool: 'Nmap',
     },
     {
       id: 'HTTP-001',
@@ -380,7 +368,8 @@ function formatReportData(rawData: RawConsolidatedReport | null | undefined): Re
     }
   }
 
-  // 2. Processa dados do Nmap
+  // 2. Processa dados do Nmap (ignora portas web comuns 80, 443, 8080 e 8443 na composição de achados)
+  const COMMON_HTTP_PORTS = new Set([80, 443, 8080, 8443]);
   const nmapEntries = Array.isArray(rawData.nmap) ? rawData.nmap : [rawData.nmap];
   for (const entry of nmapEntries) {
     if (!entry || typeof entry !== 'object') continue;
@@ -393,8 +382,11 @@ function formatReportData(rawData: RawConsolidatedReport | null | undefined): Re
       }
       const portas = Array.isArray(h.portas) ? h.portas : [];
       for (const p of portas) {
-        openPorts++;
         const numPorta = Number(p.porta);
+        if (COMMON_HTTP_PORTS.has(numPorta)) {
+          continue;
+        }
+        openPorts++;
         const servicoNome = p.servico?.nome || 'serviço';
         const produto = p.servico?.produto || '';
         const versao = p.servico?.versao || '';
@@ -407,7 +399,7 @@ function formatReportData(rawData: RawConsolidatedReport | null | undefined): Re
           severity = 'Alto';
           recommendation =
             'Serviços administrativos ou de banco de dados não devem ficar expostos à internet pública. Restrinja via VPN, allowlist de IP ou firewall.';
-        } else if ([22, 8080, 8443, 8888, 9000, 3000].includes(numPorta)) {
+        } else if ([22, 8888, 9000, 3000].includes(numPorta)) {
           severity = 'Médio';
           recommendation =
             'Garanta autenticação forte (ex: chaves SSH, desabilitar senha), TLS atualizado e restrição de origem quando aplicável.';
