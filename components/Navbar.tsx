@@ -20,16 +20,6 @@ export function Navbar() {
           <Link href="#" className="hover:text-white transition-colors">Integração</Link>
           <Link href="/docs" className="hover:text-white transition-colors">Docs</Link>
         </div>
-
-        {/* Botão Relatório à direita */}
-        <div className="hidden md:flex absolute right-[200px] items-center">
-          <Link 
-            href="/report" 
-            className="text-sm font-medium text-[#030303] bg-white hover:bg-zinc-200 px-5 py-2.5 rounded-full transition-colors font-semibold"
-          >
-            Ver Relatório
-          </Link>
-        </div>
         
       </div>
     </nav>
