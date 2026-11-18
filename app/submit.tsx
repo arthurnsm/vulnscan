@@ -5,8 +5,8 @@ export interface StepUpdateEvent {
   etapa: string;
   status: "pending" | "running" | "completed" | "error";
   mensagem?: string;
-  resultado?: any;
-  relatorio?: any;
+  resultado?: Record<string, unknown> | unknown;
+  relatorio?: Record<string, unknown>;
 }
 
 interface BotaoProps {
@@ -15,7 +15,7 @@ interface BotaoProps {
   onScanChange?: (isScanning: boolean) => void;
   onErrorChange?: (erro: string | null) => void;
   onStepUpdate?: (event: StepUpdateEvent) => void;
-  onScanComplete?: (relatorio: any) => void;
+  onScanComplete?: (relatorio: Record<string, unknown> | undefined) => void;
   disabled?: boolean;
 }
 
@@ -78,6 +78,7 @@ export function Botao({
 
     setLoading(true);
     setIsRedirecting(false);
+    const scanStartTime = Date.now();
     if (onScanChange) onScanChange(true);
 
     // Notifica início do processo de preparação
@@ -172,8 +173,28 @@ export function Botao({
                 if (eventData.etapa === "consolidacao" && eventData.status === "completed") {
                   scanSuccessful = true;
                   setIsRedirecting(true);
+                  const totalSec = Math.max(1, Math.round((Date.now() - scanStartTime) / 1000));
+                  const mins = Math.floor(totalSec / 60);
+                  const secs = totalSec % 60;
+                  const formattedDuration = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+                  const formattedDate = new Date().toLocaleDateString("pt-BR", {
+                    day: "2-digit",
+                    month: "long",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  });
+                  const generatedId = `VS-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+                  const finalReport = eventData.relatorio
+                    ? {
+                        ...eventData.relatorio,
+                        duration: eventData.relatorio.duration || formattedDuration,
+                        date: eventData.relatorio.date || formattedDate,
+                        scanId: eventData.relatorio.scanId || generatedId,
+                      }
+                    : eventData.relatorio;
                   if (onScanComplete) {
-                    onScanComplete(eventData.relatorio);
+                    onScanComplete(finalReport);
                   }
                 }
               } catch (parseErr) {
@@ -202,21 +223,25 @@ export function Botao({
         }
       } else {
         // Fallback caso streaming não esteja disponível na resposta
-        const dados = await resposta.json();
+        const dados = (await resposta.json()) as Record<string, unknown>;
         scanSuccessful = true;
         setIsRedirecting(true);
         if (onScanComplete) onScanComplete(dados);
       }
-    } catch (erro: any) {
+    } catch (erro: unknown) {
+      const mensagemErro =
+        erro instanceof Error
+          ? erro.message
+          : "Ocorreu um erro durante a execução das ferramentas.";
       console.error("Erro na comunicação com o scanner:", erro);
       if (onErrorChange) {
-        onErrorChange(erro?.message || "Ocorreu um erro durante a execução das ferramentas.");
+        onErrorChange(mensagemErro);
       }
       if (onStepUpdate) {
         onStepUpdate({
           etapa: "consolidacao",
           status: "error",
-          mensagem: erro?.message || "Falha durante o escaneamento.",
+          mensagem: mensagemErro,
         });
       }
       if (onScanChange) onScanChange(false);
