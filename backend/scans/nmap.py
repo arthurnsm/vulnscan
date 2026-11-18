@@ -7,7 +7,7 @@ async def run_nmap(alvo: str, tipo_scan: str) -> Dict[str, Any]:
    
     if tipo_scan == "fast_scan":
         # Fast scan: Apenas portas comuns (-F), detecção de versão rápida (--version-light) e sem scripts padrão
-        comando = ["nmap", "-F", "-sV", "--version-light", "-T4", "-oX", "-", alvo]
+        comando = ["nmap", "-F", "-sV", "--version-light", "-T4", "--host-timeout", "25s", "--max-retries", "1", "-oX", "-", alvo]
     else:
         # Deep scan: Scan completo com scripts padrão (-sC)
         comando = ["nmap", "-sT", "-sV", "-sC", "-p-", "-T4", "-oX", "-", alvo]

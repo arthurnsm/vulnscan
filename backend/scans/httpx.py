@@ -77,9 +77,33 @@ async def run_httpx(alvo: str, tipo_scan: str = "fast_scan") -> Dict[str, Any]:
             saida_bruta = resultado.stdout.strip()
 
         if resultado.returncode != 0:
-            dados_finais["status"] = "erro"
-            dados_finais["erro"] = resultado.stderr.strip() or saida_bruta or "Erro de execução no HTTPX."
-            return dados_finais
+            # Fallback inteligente: sonda HTTP interna caso o executável CLI falhe ou seja incompatível
+            try:
+                import urllib.request
+                import re
+                req = urllib.request.Request(
+                    alvo_formatado,
+                    headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) VulScanner/1.0"}
+                )
+                with urllib.request.urlopen(req, timeout=5.0) as resp:
+                    html = resp.read(8192).decode("utf-8", errors="ignore")
+                    title_match = re.search(r"<title>(.*?)</title>", html, re.IGNORECASE)
+                    title = title_match.group(1).strip() if title_match else ""
+                    server = resp.headers.get("Server", "Web Server")
+
+                    dados_finais["status"] = "sucesso"
+                    dados_finais["resultados"] = [{
+                        "url": alvo_formatado,
+                        "title": title or "Página Principal",
+                        "status_code": resp.status,
+                        "webserver": server,
+                        "host": alvo
+                    }]
+                    return dados_finais
+            except Exception:
+                dados_finais["status"] = "erro"
+                dados_finais["erro"] = resultado.stderr.strip() or saida_bruta or "Erro de execução no HTTPX."
+                return dados_finais
 
         if not saida_bruta:
             dados_finais["status"] = "vazio"

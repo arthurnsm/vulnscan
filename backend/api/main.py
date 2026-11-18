@@ -1,5 +1,5 @@
-from fastapi import FastAPI
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 import uvicorn
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,6 +14,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from routes.deep_orchestrator import DeepOrquestrator
 from routes.fast_orchestrator import FastOrquestrator
+from routes.stream_orchestrator import StreamScanOrquestrator
 from scans.ping import ping_host
 
 app = FastAPI()
@@ -29,6 +30,7 @@ app.add_middleware(
 class buttonPayload(BaseModel):
     alvoUrl: str
     isDeepScan: bool = False
+    stream: bool = False
 
 class pingPayload(BaseModel):
     alvoUrl: str
@@ -54,8 +56,27 @@ async def PingAlvo(dados: pingPayload):
     }
 
 
+@app.post("/api/scan/stream")
+async def ScanStream(dados: buttonPayload):
+    """
+    Endpoint SSE que transmite em tempo real o status e os eventos de cada ferramenta.
+    """
+    return StreamingResponse(
+        StreamScanOrquestrator(dados.alvoUrl, dados.isDeepScan),
+        media_type="text/event-stream"
+    )
+
+
 @app.post("/api/scan")
-async def Scan(dados: buttonPayload):
+async def Scan(dados: buttonPayload, request: Request):
+    # Se o cliente solicitar streaming via header ou payload, redireciona para o stream SSE
+    accept_header = request.headers.get("accept", "")
+    if dados.stream or "text/event-stream" in accept_header:
+        return StreamingResponse(
+            StreamScanOrquestrator(dados.alvoUrl, dados.isDeepScan),
+            media_type="text/event-stream"
+        )
+
     if not dados.isDeepScan:
         result = await FastOrquestrator(dados.alvoUrl)
         if isinstance(result, dict) and result.get("status") == "erro":

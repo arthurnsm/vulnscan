@@ -63,6 +63,8 @@ async def run_ffuf(alvo: str, tipo_scan: str = "fast_scan") -> Dict[str, Any]:
             "-t", "100",
             "-e", ".php,.html,.txt,.bak,.env",
             "-mc", "200,301,403",
+            "-maxtime", "120",
+            "-timeout", "5",
             "-o", temp_filename,
             "-of", "json",
             "-s"
@@ -75,6 +77,8 @@ async def run_ffuf(alvo: str, tipo_scan: str = "fast_scan") -> Dict[str, Any]:
             "-w", wordlist,
             "-t", "50",
             "-mc", "200,301,403",
+            "-maxtime", "15",
+            "-timeout", "3",
             "-o", temp_filename,
             "-of", "json",
             "-s"
