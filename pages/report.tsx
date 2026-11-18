@@ -237,21 +237,42 @@ function formatReportData(rawData: any): ReportModel {
       if (!item) continue;
       const pathUrl = item.url || item.input?.FUZZ || item.path || '';
       const pathLower = String(pathUrl).toLowerCase();
+      const statusHttp = Number(item.status || 200);
+      const isAccessible2xx = statusHttp >= 200 && statusHttp < 300;
+      const isProtected4xx = statusHttp === 401 || statusHttp === 403;
 
       let severity: Finding['severity'] = 'Baixo';
-      if (pathLower.includes('.env') || pathLower.includes('.git') || pathLower.includes('.bak') || pathLower.includes('backup') || pathLower.includes('config')) {
+      if (
+        isAccessible2xx &&
+        (pathLower.includes('.env') ||
+          pathLower.includes('.git') ||
+          pathLower.includes('.bak') ||
+          pathLower.includes('.sql') ||
+          pathLower.includes('backup') ||
+          pathLower.includes('config'))
+      ) {
         severity = 'Crítico';
-      } else if (pathLower.includes('admin') || pathLower.includes('dashboard') || pathLower.includes('login') || pathLower.includes('phpmyadmin')) {
+      } else if (
+        isAccessible2xx &&
+        (pathLower.includes('admin') ||
+          pathLower.includes('dashboard') ||
+          pathLower.includes('login') ||
+          pathLower.includes('phpmyadmin'))
+      ) {
         severity = 'Médio';
+      } else if (isProtected4xx) {
+        severity = 'Info';
+      } else if (!isAccessible2xx) {
+        severity = 'Info';
       }
 
       findings.push({
         id: `DIR-${findings.length + 1}`,
-        title: `Diretório/Arquivo Acessível: ${pathUrl}`,
+        title: `${isAccessible2xx ? 'Diretório/Arquivo Acessível' : isProtected4xx ? 'Rota Protegida Detectada' : 'Rota com Redirecionamento'}: ${pathUrl}`,
         severity,
         endpoint: pathUrl,
-        details: `Código HTTP retornado: ${item.status || 200}. Tamanho do conteúdo: ${item.length || item.words || 0} bytes. Resposta disponível na aplicação.`,
-        status: 'Aberto',
+        details: `Código HTTP retornado: ${statusHttp}. Tamanho do conteúdo: ${item.length || item.words || 0} bytes.${item.redirectlocation ? ` Redireciona para: ${item.redirectlocation}.` : ' Resposta disponível na aplicação.'}`,
+        status: isProtected4xx ? 'Restrito' : 'Aberto',
         tool: 'FFUF'
       });
     }
