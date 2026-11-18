@@ -2,27 +2,62 @@ import asyncio
 import sys
 import os
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'scans')))
+# Adiciona o diretório backend ao sys.path para importação do pacote scans
+backend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
 
-from nmap import run_nmap
-from fuzzing import run_fuzzing
+from scans.ping import ping_host
+from scans.nmap import run_nmap
+from scans.httpx import run_httpx
+from scans.ffuf import run_ffuf
+from scans.nuclei import run_nuclei
+
 
 async def DeepOrquestrator(url: str):
     print(f"=== ORQUESTRADOR DEEP INICIADO PARA: {url} ===")
+    
+    # 1. Verificação prévia da URL/Host via Ping
+    validacao = await ping_host(url)
+    if not validacao.get("ativo"):
+        print(f"[-] Verificação de URL falhou: {validacao.get('erro')}")
+        return {
+            "status": "erro",
+            "ativo": False,
+            "host": validacao.get("host"),
+            "erro": validacao.get("erro") or "O host informado não respondeu ao teste de conectividade."
+        }
+
+    print(f"[+] URL validada com sucesso! Host ativo: {validacao.get('host')}")
+    print("[+] Disparando bateria profunda de ferramentas em paralelo...")
     scan_type = "deep_scan"
+
+    # 2. Executa todas as ferramentas do Deep Scan em paralelo de forma assíncrona
     resultados = await asyncio.gather(
         run_nmap(url, scan_type),
-        run_fuzzing(url, scan_type),
+        run_httpx(url, scan_type),
+        run_ffuf(url, scan_type),
+        run_nuclei(url, scan_type),
         return_exceptions=True
     )
-    
-    resultado_nmap = resultados[0] if not isinstance(resultados[0], Exception) else {"erro": str(resultados[0])}
-    resultado_ffuz = resultados[1] if not isinstance(resultados[1], Exception) else {"erro": str(resultados[1])}
-    
+
+    resultado_nmap = resultados[0] if not isinstance(resultados[0], Exception) else {"status": "erro", "erro": str(resultados[0])}
+    resultado_httpx = resultados[1] if not isinstance(resultados[1], Exception) else {"status": "erro", "erro": str(resultados[1])}
+    resultado_ffuf = resultados[2] if not isinstance(resultados[2], Exception) else {"status": "erro", "erro": str(resultados[2])}
+    resultado_nuclei = resultados[3] if not isinstance(resultados[3], Exception) else {"status": "erro", "erro": str(resultados[3])}
+
+    # 3. Consolidação do relatório completo
     relatorio_consolidado = {
+        "status": "sucesso",
+        "alvo": url,
+        "host": validacao.get("host"),
+        "tipo": scan_type,
         "nmap": [resultado_nmap],
-        "ffuz": [resultado_ffuz]
+        "httpx": [resultado_httpx],
+        "ffuf": [resultado_ffuf],
+        "nuclei": [resultado_nuclei],
+        "ffuz": [resultado_ffuf]  # Mantido para retrocompatibilidade
     }
-    
-    print("=== ORQUESTRADOR DEEP FINALIZADO ===")
+
+    print("=== ORQUESTRADOR DEEP FINALIZADO COM SUCESSO ===")
     return relatorio_consolidado
