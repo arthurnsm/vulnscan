@@ -13,7 +13,6 @@ import {
   ShieldAlert,
   ShieldCheck,
   Filter,
-  Server,
   Layers,
   FileJson,
   Search,
@@ -76,6 +75,7 @@ export interface ReportModel {
   };
   findings: Finding[];
   isMock?: boolean;
+  screenshotAvailable?: boolean;
 }
 
 const SEVERITY_ORDER: Record<Finding['severity'], number> = {
@@ -270,6 +270,7 @@ export interface RawConsolidatedReport {
   ffuf?: RawToolResult<RawFfufItem>[] | RawToolResult<RawFfufItem>;
   ffuz?: RawToolResult<RawFfufItem>[] | RawToolResult<RawFfufItem>;
   nuclei?: RawToolResult<RawNucleiItem>[] | RawToolResult<RawNucleiItem>;
+  screenshotAvailable?: boolean;
 }
 
 const STORAGE_KEY = 'vulscan_latest_report';
@@ -607,6 +608,10 @@ function formatReportData(rawData: RawConsolidatedReport | null | undefined): Re
     httpInfo,
     findings,
     isMock: false,
+    screenshotAvailable:
+      typeof rawData.screenshotAvailable === 'boolean'
+        ? rawData.screenshotAvailable
+        : undefined,
   };
 }
 
@@ -625,32 +630,10 @@ const getSeverityBadge = (severity: Finding['severity']) => {
   }
 };
 
-const getSeverityDot = (severity: Finding['severity']) => {
-  switch (severity) {
-    case 'Crítico':
-      return 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]';
-    case 'Alto':
-      return 'bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.5)]';
-    case 'Médio':
-      return 'bg-yellow-500';
-    case 'Baixo':
-      return 'bg-blue-400';
-    default:
-      return 'bg-purple-400';
-  }
-};
+// getSeverityDot removido para eliminar bolinhas coloridas
 
-const getToolBadge = (tool: Finding['tool']) => {
-  switch (tool) {
-    case 'Nuclei':
-      return 'bg-purple-500/10 text-purple-300 border-purple-500/30';
-    case 'Nmap':
-      return 'bg-zinc-900 text-zinc-200 border-zinc-700';
-    case 'FFUF':
-      return 'bg-zinc-900 text-zinc-300 border-zinc-700/80';
-    default:
-      return 'bg-zinc-900 text-zinc-400 border-zinc-800';
-  }
+const getToolBadge = (_tool: Finding['tool']) => {
+  return 'bg-[#050505] text-zinc-300 border-zinc-800';
 };
 
 export default function ReportPage() {
@@ -679,6 +662,58 @@ export default function ReportPage() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [reviewedIds, setReviewedIds] = useState<Record<string, boolean>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [screenshotError, setScreenshotError] = useState(false);
+  const [isResolvingImage, setIsResolvingImage] = useState(true);
+
+  const screenshotTargetUrl = useMemo(() => {
+    if (!report.target) return '';
+    const clean = report.target.trim().replace(/^https?:\/\//i, '').replace(/\/+$/, '');
+    return `https://${clean}`;
+  }, [report.target]);
+
+  useEffect(() => {
+    // 1. Se a existência da imagem já foi resolvida antes da montagem (ex: término do scan no app/page.tsx)
+    if (typeof report.screenshotAvailable === 'boolean') {
+      setScreenshotError(!report.screenshotAvailable);
+      setIsResolvingImage(false);
+      return;
+    }
+
+    if (!screenshotTargetUrl) {
+      setScreenshotError(true);
+      setIsResolvingImage(false);
+      return;
+    }
+
+    let isMounted = true;
+    setIsResolvingImage(true);
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4500);
+
+    // 2. Valida a existência real da imagem no backend antes de montar e exibir o relatório
+    fetch(`/api/screenshot?target=${encodeURIComponent(screenshotTargetUrl)}&checkOnly=true`, {
+      signal: controller.signal,
+    })
+      .then((res) => {
+        if (!isMounted) return;
+        clearTimeout(timeoutId);
+        setScreenshotError(!res.ok);
+        setIsResolvingImage(false);
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        clearTimeout(timeoutId);
+        setScreenshotError(true);
+        setIsResolvingImage(false);
+      });
+
+    return () => {
+      isMounted = false;
+      controller.abort();
+      clearTimeout(timeoutId);
+    };
+  }, [report.screenshotAvailable, screenshotTargetUrl]);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -820,15 +855,34 @@ export default function ReportPage() {
     },
   ];
 
-  const httpStatusNum = Number(report.httpInfo.statusCode || 200);
-  const httpStatusDot =
-    httpStatusNum >= 200 && httpStatusNum < 300
-      ? 'bg-emerald-500'
-      : httpStatusNum >= 300 && httpStatusNum < 400
-      ? 'bg-purple-400'
-      : 'bg-orange-400';
-
   const circleCircumference = 2 * Math.PI * 62; // ~389.55
+
+  if (isResolvingImage) {
+    return (
+      <div
+        className={`min-h-screen bg-[#050505] text-zinc-300 ${jakarta.className} flex flex-col items-center justify-center p-6 relative overflow-hidden select-none`}
+      >
+        <Head>
+          <title>{`Preparando Relatório: ${report.target || 'VulnScan'} — VulnScan`}</title>
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+        </Head>
+        <div className="flex flex-col items-center justify-center gap-5 text-center max-w-sm w-full">
+          <div className="relative flex items-center justify-center w-14 h-14 rounded-full border border-zinc-800 bg-[#090909]">
+            <Globe className="w-6 h-6 text-zinc-600 animate-pulse" />
+            <div className="absolute inset-0 rounded-full border border-t-zinc-400 border-r-transparent border-b-transparent border-l-transparent animate-spin" />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <span className="text-sm font-semibold text-zinc-200 tracking-tight">
+              Resolvendo visualização do alvo
+            </span>
+            <span className={`text-xs text-zinc-500 truncate max-w-xs ${jetBrainsMono.className}`}>
+              {screenshotTargetUrl || report.target || 'Carregando parâmetros...'}
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <motion.div
@@ -854,20 +908,8 @@ export default function ReportPage() {
         }
       `}</style>
 
-      {/* Top Hero Shell (Identidade Visual da Home: #030303 + Grid 4rem + Brilho Roxo) */}
+      {/* Top Hero Shell (Identidade Visual da Home: #030303) */}
       <section className="relative w-full bg-[#030303] border-b border-zinc-800/80 overflow-hidden">
-        <div className="no-print absolute inset-0 z-0 pointer-events-none">
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:4rem_4rem]" />
-          <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[780px] h-[340px] bg-purple-600/10 blur-[120px] rounded-full" />
-          <div
-            className="absolute inset-0 bg-[linear-gradient(to_right,rgba(124,58,237,0.1)_1px,transparent_1px),linear-gradient(to_bottom,rgba(124,58,237,0.1)_1px,transparent_1px)] bg-[size:4rem_4rem]"
-            style={{
-              WebkitMaskImage: `radial-gradient(240px circle at ${mousePosition.x}px ${mousePosition.y}px, black 0%, transparent 100%)`,
-              maskImage: `radial-gradient(240px circle at ${mousePosition.x}px ${mousePosition.y}px, black 0%, transparent 100%)`,
-            }}
-          />
-        </div>
-
         <div className="no-print">
           <Navbar />
         </div>
@@ -908,17 +950,12 @@ export default function ReportPage() {
               <div className="flex flex-col gap-3">
                 <div className="flex flex-wrap items-center gap-2.5">
                   <span
-                    className={`inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest px-3 py-1 rounded-full border ${
+                    className={`inline-flex items-center text-[11px] font-semibold uppercase tracking-widest px-3 py-1 rounded-full border ${
                       report.isDeepScan
                         ? 'bg-purple-500/10 border-purple-500/35 text-purple-300'
                         : 'bg-zinc-900/90 border-zinc-800 text-zinc-300'
                     }`}
                   >
-                    <span
-                      className={`w-1.5 h-1.5 rounded-full ${
-                        report.isDeepScan ? 'bg-purple-400' : 'bg-zinc-400'
-                      }`}
-                    />
                     {report.scanType}
                   </span>
                   <span
@@ -930,10 +967,7 @@ export default function ReportPage() {
                 </div>
 
                 <h1 className="text-3xl sm:text-4xl lg:text-5xl font-semibold tracking-tight leading-[1.1] text-white">
-                  Relatório de{' '}
-                  <span className="bg-gradient-to-b from-white to-zinc-500 bg-clip-text text-transparent">
-                    Auditoria.
-                  </span>
+                  Relatório de Auditoria.
                 </h1>
 
                 <p className="text-sm sm:text-base text-zinc-400 max-w-2xl leading-relaxed">
@@ -1014,37 +1048,46 @@ export default function ReportPage() {
             variants={itemVariants}
             className="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full"
           >
-            {/* Card Esquerdo: Janela do Alvo + Telemetria de Infraestrutura */}
+            {/* Card Esquerdo: Janela do Alvo + Imagem Shodan + Telemetria de Infraestrutura */}
             <div className="lg:col-span-7 xl:col-span-8 bg-[#0A0A0A]/90 border border-zinc-800/80 hover:border-zinc-700/80 rounded-3xl overflow-hidden flex flex-col transition-colors">
               {/* Top Bar Estilo Browser (espelhando AuditReportVisual) */}
               <div className="h-12 w-full border-b border-zinc-800/80 bg-[#070707] flex items-center justify-between px-5 gap-3 shrink-0">
-                <div className="flex items-center gap-2">
-                  <div className="w-2.5 h-2.5 rounded-full bg-zinc-600" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-zinc-800" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-zinc-800" />
-                </div>
-
                 <div
-                  className={`bg-[#050505] border border-zinc-800/90 rounded-full px-4 py-1 text-xs text-zinc-300 flex items-center gap-2 max-w-[65%] truncate ${jetBrainsMono.className}`}
+                  className={`bg-[#050505] border border-zinc-800/90 rounded-full px-4 py-1 text-xs text-zinc-300 flex items-center gap-2 max-w-[80%] truncate ${jetBrainsMono.className}`}
                 >
                   <Lock className="w-3 h-3 text-purple-400 shrink-0" />
                   <span className="truncate">https://{report.target}</span>
                 </div>
 
-                <div className="hidden sm:flex items-center gap-1.5 text-[11px] font-medium text-zinc-400">
-                  <span className={`w-2 h-2 rounded-full ${httpStatusDot}`} />
+                <div className="hidden sm:flex items-center text-[11px] font-medium text-zinc-400">
                   <span className={jetBrainsMono.className}>
                     HTTP {report.httpInfo.statusCode || 200}
                   </span>
                 </div>
               </div>
 
+              {/* Imagem do Site (estilo Shodan Host Screenshot) */}
+              <div className="relative w-full h-56 sm:h-72 md:h-80 bg-[#060606] border-b border-zinc-800/80 overflow-hidden flex items-center justify-center">
+                {!screenshotError && screenshotTargetUrl ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={`/api/screenshot?target=${encodeURIComponent(screenshotTargetUrl)}`}
+                    alt={`Screenshot do site ${report.target}`}
+                    className="w-full h-full object-cover object-top transition-all duration-500"
+                    onError={() => setScreenshotError(true)}
+                  />
+                ) : (
+                  <div className="flex items-center justify-center p-6">
+                    <Globe className="w-10 h-10 text-zinc-700/60" />
+                  </div>
+                )}
+              </div>
+
               {/* Conteúdo de Reconhecimento */}
               <div className="flex-1 p-6 md:p-8 flex flex-col justify-between gap-7 relative">
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                   <div>
-                    <span className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500 flex items-center gap-2 mb-2">
-                      <Server className="w-3.5 h-3.5 text-purple-400" />
+                    <span className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500 mb-2 block">
                       Infraestrutura &amp; Fingerprinting
                     </span>
                     <h2 className="text-xl md:text-2xl font-semibold text-white tracking-tight">
@@ -1069,17 +1112,12 @@ export default function ReportPage() {
                     ).map((tool) => (
                       <span
                         key={tool.key}
-                        className={`text-[11px] font-medium px-2.5 py-1 rounded-full border flex items-center gap-1.5 ${
+                        className={`text-[11px] font-medium px-2.5 py-1 rounded-full border ${
                           tool.active
-                            ? 'bg-purple-500/10 border-purple-500/30 text-purple-300'
+                            ? 'bg-zinc-800 border-zinc-700 text-zinc-100'
                             : 'bg-zinc-900/70 border-zinc-800 text-zinc-500'
                         }`}
                       >
-                        <span
-                          className={`w-1.5 h-1.5 rounded-full ${
-                            tool.active ? 'bg-purple-400' : 'bg-zinc-600'
-                          }`}
-                        />
                         {tool.label}
                       </span>
                     ))}
@@ -1093,9 +1131,8 @@ export default function ReportPage() {
                       Status HTTP
                     </span>
                     <div
-                      className={`text-base font-semibold text-white flex items-center gap-2 ${jetBrainsMono.className}`}
+                      className={`text-base font-semibold text-white ${jetBrainsMono.className}`}
                     >
-                      <span className={`w-2 h-2 rounded-full ${httpStatusDot}`} />
                       {report.httpInfo.statusCode || 200}
                     </div>
                   </div>
@@ -1163,7 +1200,7 @@ export default function ReportPage() {
             <div className="lg:col-span-5 xl:col-span-4 bg-[#0A0A0A]/90 border border-zinc-800/80 hover:border-zinc-700/80 rounded-3xl p-6 md:p-7 flex flex-col justify-between gap-6 transition-colors relative overflow-hidden">
               <div className="flex items-center justify-between gap-2">
                 <h2 className="text-[11px] font-semibold text-zinc-400 uppercase tracking-widest">
-                  Security Score
+                  Indicador de Segurança
                 </h2>
                 <span className={`text-xs font-semibold px-3 py-1 rounded-full border ${scoreTone.badge}`}>
                   {report.riskLevel}
@@ -1274,7 +1311,7 @@ export default function ReportPage() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Buscar endpoint, porta ou CVE..."
-                    className={`w-full bg-[#050505] border border-zinc-800 focus:border-purple-500/60 rounded-full pl-9 pr-8 py-2 text-xs text-white placeholder:text-zinc-500 focus:outline-none transition-colors ${jetBrainsMono.className}`}
+                    className={`w-full bg-[#050505] border border-zinc-800 focus:border-zinc-500 rounded-full pl-9 pr-8 py-2 text-xs text-white placeholder:text-zinc-500 focus:outline-none transition-colors ${jetBrainsMono.className}`}
                   />
                   {searchQuery && (
                     <button
@@ -1303,7 +1340,7 @@ export default function ReportPage() {
                       onClick={() => setFilterTool(tool)}
                       className={`text-xs px-3 py-1.5 rounded-full border transition-colors cursor-pointer flex items-center gap-1.5 ${
                         filterTool.toLowerCase() === tool.toLowerCase()
-                          ? 'bg-purple-500/15 text-purple-300 border-purple-500/50 font-semibold'
+                          ? 'bg-white text-black border-white font-semibold'
                           : 'bg-[#050505] text-zinc-400 border-zinc-800 hover:border-zinc-700 hover:text-zinc-200'
                       }`}
                     >
@@ -1326,7 +1363,7 @@ export default function ReportPage() {
                       onClick={() => setFilterSeverity(sev)}
                       className={`text-xs px-3 py-1.5 rounded-full border transition-colors cursor-pointer ${
                         filterSeverity === sev
-                          ? 'bg-white text-[#030303] border-white font-semibold'
+                          ? 'bg-white text-black border-white font-semibold'
                           : 'bg-[#050505] text-zinc-400 border-zinc-800 hover:border-zinc-700 hover:text-zinc-200'
                       }`}
                     >
@@ -1380,12 +1417,7 @@ export default function ReportPage() {
                                 } ${isReviewed ? 'opacity-65' : ''}`}
                               >
                                 {/* Severidade */}
-                                <div className="md:col-span-2 flex items-center gap-2.5">
-                                  <span
-                                    className={`w-2 h-2 rounded-full shrink-0 ${getSeverityDot(
-                                      vuln.severity
-                                    )}`}
-                                  />
+                                <div className="md:col-span-2 flex items-center gap-2">
                                   <span
                                     className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${getSeverityBadge(
                                       vuln.severity

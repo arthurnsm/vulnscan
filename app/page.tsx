@@ -333,11 +333,33 @@ export default function Home() {
                       disabled={!/^(?:https?:\/\/)?(?:(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}|(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)|localhost)(?::\d{1,5})?(?:\/.*)?$/.test(textUrl.trim())}
                       onErrorChange={setUrlError}
                       onStepUpdate={handleStepUpdate}
-                      onScanComplete={(relatorio) => {
+                      onScanComplete={async (relatorio) => {
                         console.log("Relatório final consolidado:", relatorio);
                         try {
                           if (relatorio) {
-                            localStorage.setItem("vulscan_latest_report", JSON.stringify(relatorio));
+                            const rawTarget =
+                              (relatorio as { target?: string; alvo?: string }).target ||
+                              (relatorio as { target?: string; alvo?: string }).alvo ||
+                              textUrl;
+
+                            let screenshotAvailable = false;
+                            if (rawTarget && typeof window !== "undefined") {
+                              const cleanTarget = String(rawTarget).trim();
+                              try {
+                                const checkRes = await fetch(
+                                  `/api/screenshot?target=${encodeURIComponent(cleanTarget)}&checkOnly=true`
+                                );
+                                screenshotAvailable = Boolean(checkRes.ok);
+                              } catch {
+                                screenshotAvailable = false;
+                              }
+                            }
+
+                            const enriched = {
+                              ...relatorio,
+                              screenshotAvailable,
+                            };
+                            localStorage.setItem("vulscan_latest_report", JSON.stringify(enriched));
                           }
                         } catch (e) {
                           console.error("Erro ao persistir relatório no localStorage:", e);
