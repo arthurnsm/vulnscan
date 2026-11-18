@@ -3,8 +3,8 @@
 
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #030303;
+  --foreground: #ededed;
 }
 
 @theme inline {
@@ -15,15 +15,9 @@
   --font-inter: 'Inter', sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+html,
 body {
-  background: var(--background);
+  background: #030303;
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }

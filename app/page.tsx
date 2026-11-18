@@ -1,7 +1,8 @@
 "use client"
 
-import React, { useState, useEffect, useRef } from "react";
-import { motion, useInView, AnimatePresence } from "framer-motion";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import { Botao } from "./submit";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
@@ -9,7 +10,7 @@ import { FeatureRow } from "../components/FeatureRow";
 import { ScannerLoader, ToolStepData } from "../components/ScannerLoader";
 import { AuditReportVisual } from "../components/AuditReportVisual";
 import { SequentialPipelineVisual } from "../components/SequentialPipelineVisual";
-import { ShieldAlert, Terminal, ArrowRight } from "lucide-react";
+import { ShieldAlert, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { jakarta, jetBrainsMono } from "./fonts";
 
@@ -56,6 +57,7 @@ function Snake({ isVertical, track }: { isVertical: boolean, track: number }) {
 
 
 export default function Home() {
+  const router = useRouter();
   const [textUrl, setTextUrl] = useState("");
   const [isDeepScan, setIsDeepScan] = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
@@ -64,10 +66,12 @@ export default function Home() {
   const [isScanning, setIsScanning] = useState(false);
   const [urlError, setUrlError] = useState<string | null>(null);
   const [stepsStatus, setStepsStatus] = useState<Record<string, ToolStepData>>({});
-  const [completedOrder, setCompletedOrder] = useState<string[]>([]);
-  const [activeMessage, setActiveMessage] = useState<string>("");
+  const [scanRunId, setScanRunId] = useState(0);
+  const [scanReportReady, setScanReportReady] = useState(false);
+  const [visualSequenceDone, setVisualSequenceDone] = useState(false);
+  const [isTransitioningOut, setIsTransitioningOut] = useState(false);
 
-  const handleStepUpdate = (evt: { etapa: string; status: "pending" | "running" | "completed" | "error"; mensagem?: string; resultado?: any }) => {
+  const handleStepUpdate = (evt: { etapa: string; status: "pending" | "running" | "completed" | "error"; mensagem?: string; resultado?: unknown }) => {
     setStepsStatus((prev) => ({
       ...prev,
       [evt.etapa]: {
@@ -76,13 +80,11 @@ export default function Home() {
         resultado: evt.resultado,
       },
     }));
-    if (evt.status === "completed" || evt.status === "error") {
-      setCompletedOrder((prev) => (prev.includes(evt.etapa) ? prev : [...prev, evt.etapa]));
-    }
-    if (evt.mensagem) {
-      setActiveMessage(evt.mensagem);
-    }
   };
+
+  const handleVisualSequenceComplete = useCallback(() => {
+    setVisualSequenceDone(true);
+  }, []);
 
   const tooltipRef = useRef<HTMLDivElement>(null);
 
@@ -98,6 +100,28 @@ export default function Home() {
     window.addEventListener("mousemove", handleMouseMove);
     return () => window.removeEventListener("mousemove", handleMouseMove);
   }, []);
+
+  useEffect(() => {
+    if (!scanReportReady || !visualSequenceDone) return;
+
+    const startTransition = setTimeout(() => {
+      setIsTransitioningOut(true);
+    }, 120);
+
+    const navigateTimer = setTimeout(() => {
+      try {
+        sessionStorage.setItem("vulscan_page_transition", "1");
+      } catch {
+        // Ignore storage errors
+      }
+      router.push("/report");
+    }, 700);
+
+    return () => {
+      clearTimeout(startTransition);
+      clearTimeout(navigateTimer);
+    };
+  }, [scanReportReady, visualSequenceDone, router]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -120,7 +144,15 @@ export default function Home() {
 
 
   return (
-    <div className={`w-full min-h-screen bg-[#050505] text-zinc-300 ${jakarta.className} flex flex-col`}>
+    <motion.div
+      animate={
+        isTransitioningOut
+          ? { opacity: 0, scale: 0.985, filter: "blur(8px)" }
+          : { opacity: 1, scale: 1, filter: "blur(0px)" }
+      }
+      transition={{ duration: 0.52, ease: [0.22, 1, 0.36, 1] }}
+      className={`w-full min-h-screen bg-[#050505] text-zinc-300 ${jakarta.className} flex flex-col relative`}
+    >
       
 
       <section className="relative w-full flex flex-col overflow-hidden bg-[#030303] border-b border-zinc-800/80">
@@ -310,18 +342,17 @@ export default function Home() {
                         } catch (e) {
                           console.error("Erro ao persistir relatório no localStorage:", e);
                         }
-                        // Redireciona com pequeno intervalo para visualização da conclusão bem-sucedida
-                        setTimeout(() => {
-                          window.location.href = "/report";
-                        }, 1200);
+                        setScanReportReady(true);
                       }}
                       onScanChange={(scanning) => {
                         setIsScanning(scanning);
                         if (scanning) {
                           setSearchActive(true);
                           setStepsStatus({});
-                          setCompletedOrder([]);
-                          setActiveMessage("");
+                          setScanReportReady(false);
+                          setVisualSequenceDone(false);
+                          setIsTransitioningOut(false);
+                          setScanRunId((id) => id + 1);
                         }
                       }}
                     />
@@ -356,10 +387,10 @@ export default function Home() {
             >
               {isScanning && (
                 <ScannerLoader
+                  key={scanRunId}
                   isDeepScan={isDeepScan}
                   stepsStatus={stepsStatus}
-                  completedOrder={completedOrder}
-                  activeMessage={activeMessage}
+                  onSequenceComplete={handleVisualSequenceComplete}
                 />
               )}
             </motion.div>
@@ -397,6 +428,21 @@ export default function Home() {
 
       <Footer />
 
-    </div>
+      {/* Cortina suave de transição de página para o relatório */}
+      <AnimatePresence>
+        {isTransitioningOut && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.48, ease: [0.22, 1, 0.36, 1] }}
+            className="fixed inset-0 z-[100] bg-[#030303] flex items-center justify-center pointer-events-none"
+          >
+            <div className="w-64 h-64 rounded-full bg-purple-600/10 blur-[90px]" />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+    </motion.div>
   );
 }

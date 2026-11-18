@@ -831,7 +831,10 @@ export default function ReportPage() {
   const circleCircumference = 2 * Math.PI * 62; // ~389.55
 
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, y: 12, filter: 'blur(6px)' }}
+      animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+      transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
       className={`min-h-screen bg-[#050505] text-zinc-300 ${jakarta.className} flex flex-col relative overflow-x-hidden selection:bg-purple-500/30`}
     >
       <Head>
@@ -1579,6 +1582,6 @@ export default function ReportPage() {
       <div className="no-print">
         <Footer />
       </div>
-    </div>
+    </motion.div>
   );
 }
