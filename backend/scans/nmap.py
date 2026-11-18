@@ -2,15 +2,37 @@ import asyncio
 import subprocess
 import xml.etree.ElementTree as ET
 from typing import Dict, Any
+from urllib.parse import urlparse
+
+
+def _extrair_host_nmap(alvo: str) -> str:
+    limpo = (alvo or "").strip()
+    if not limpo:
+        return ""
+    if not limpo.startswith(("http://", "https://")):
+        limpo = f"http://{limpo}"
+    return urlparse(limpo).hostname or alvo.strip()
+
 
 async def run_nmap(alvo: str, tipo_scan: str) -> Dict[str, Any]:
-   
+    host_alvo = _extrair_host_nmap(alvo)
+
     if tipo_scan == "fast_scan":
         # Fast scan: Apenas portas comuns (-F), detecção de versão rápida (--version-light) e sem scripts padrão
-        comando = ["nmap", "-F", "-sV", "--version-light", "-T4", "--host-timeout", "25s", "--max-retries", "1", "-oX", "-", alvo]
+        comando = [
+            "nmap", "-F", "-sV", "--version-light", "-T4",
+            "--host-timeout", "25s", "--max-retries", "1", "-oX", "-", host_alvo
+        ]
     else:
-        # Deep scan: Scan completo com scripts padrão (-sC)
-        comando = ["nmap", "-sT", "-sV", "-sC", "-p-", "-T4", "-oX", "-", alvo]
+        # Deep scan: varre todas as 65.535 portas em alvos locais ou as 1.000 principais em hosts externos
+        # evitando descarte de resultados por host-timeout em firewalls externos
+        eh_local = host_alvo in ("localhost", "127.0.0.1", "::1")
+        porta_flag = ["-p-"] if eh_local else ["--top-ports", "1000"]
+        comando = [
+            "nmap", "-sT", "-sV", "-sC", *porta_flag, "-T4",
+            "--min-rate", "500", "--max-retries", "1", "--host-timeout", "150s",
+            "-oX", "-", host_alvo
+        ]
 
     dados_finais = {
         "alvo_solicitado": alvo,
@@ -24,8 +46,11 @@ async def run_nmap(alvo: str, tipo_scan: str) -> Dict[str, Any]:
         resultado = await asyncio.to_thread(
             subprocess.run,
             comando,
+            stdin=subprocess.DEVNULL,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=900.0
         )
 
@@ -38,12 +63,12 @@ async def run_nmap(alvo: str, tipo_scan: str) -> Dict[str, Any]:
         # Decodifica a saída
         saida_bruta = resultado.stdout
         inicio_xml = saida_bruta.find("<?xml")
-        
+
         if inicio_xml == -1:
-             dados_finais["status"] = "erro"
-             dados_finais["erro"] = "Saída XML inválida."
-             return dados_finais
-             
+            dados_finais["status"] = "erro"
+            dados_finais["erro"] = "Saída XML inválida."
+            return dados_finais
+
         xml_limpo = saida_bruta[inicio_xml:]
         root = ET.fromstring(xml_limpo)
 
@@ -68,13 +93,13 @@ async def run_nmap(alvo: str, tipo_scan: str) -> Dict[str, Any]:
                 for port in ports.findall('port'):
                     estado_porta = port.find('state')
                     estado_str = estado_porta.get('state') if estado_porta is not None else "desconhecido"
-                    
+
                     if estado_str != "open":
                         continue
 
                     id_porta = port.get('portid')
                     protocolo = port.get('protocol')
-                    
+
                     servico = port.find('service')
                     nome_servico = "desconhecido"
                     produto = None
@@ -92,7 +117,7 @@ async def run_nmap(alvo: str, tipo_scan: str) -> Dict[str, Any]:
                         for script in port.findall('script'):
                             scripts_executados.append({
                                 "id_script": script.get('id'),
-                                "resultado": script.get('output').strip()
+                                "resultado": (script.get('output') or "").strip()
                             })
 
                     info_host["portas"].append({
@@ -106,9 +131,9 @@ async def run_nmap(alvo: str, tipo_scan: str) -> Dict[str, Any]:
                         },
                         "scripts_enum": scripts_executados
                     })
-            
+
             dados_finais["hosts"].append(info_host)
-        
+
         dados_finais["status"] = "sucesso"
         return dados_finais
 
@@ -116,18 +141,18 @@ async def run_nmap(alvo: str, tipo_scan: str) -> Dict[str, Any]:
         dados_finais["status"] = "erro_timeout"
         dados_finais["erro"] = "O scan demorou muito e foi cancelado (timeout de 900s)."
         return dados_finais
-        
+
     except FileNotFoundError:
         dados_finais["status"] = "erro_sistema"
         dados_finais["erro"] = "O binário do Nmap não foi encontrado no PATH."
         return dados_finais
-        
+
     except ET.ParseError:
-         dados_finais["status"] = "erro_parse"
-         dados_finais["erro"] = "Não foi possível analisar o XML do Nmap."
-         return dados_finais
-         
+        dados_finais["status"] = "erro_parse"
+        dados_finais["erro"] = "Não foi possível analisar o XML do Nmap."
+        return dados_finais
+
     except Exception as e:
-         dados_finais["status"] = "erro_execucao"
-         dados_finais["erro"] = f"{type(e).__name__}: {str(e)}"
-         return dados_finais
+        dados_finais["status"] = "erro_execucao"
+        dados_finais["erro"] = f"{type(e).__name__}: {str(e)}"
+        return dados_finais

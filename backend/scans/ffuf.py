@@ -3,6 +3,7 @@ import subprocess
 import json
 import os
 import shutil
+import ssl
 import uuid
 import urllib.request
 import urllib.error
@@ -79,6 +80,10 @@ def _resolver_url_base(alvo: str) -> str:
         else [f"https://{alvo_limpo}", f"http://{alvo_limpo}"]
     )
 
+    ssl_ctx = ssl.create_default_context()
+    ssl_ctx.check_hostname = False
+    ssl_ctx.verify_mode = ssl.CERT_NONE
+
     for url in candidatos:
         try:
             req = urllib.request.Request(
@@ -86,7 +91,7 @@ def _resolver_url_base(alvo: str) -> str:
                 method="HEAD",
                 headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) VulScanner/1.0"},
             )
-            with urllib.request.urlopen(req, timeout=5.0) as resp:
+            with urllib.request.urlopen(req, timeout=5.0, context=ssl_ctx) as resp:
                 parsed = urlparse(resp.geturl())
                 if parsed.scheme and parsed.netloc:
                     return f"{parsed.scheme}://{parsed.netloc}"
@@ -101,8 +106,8 @@ def _resolver_url_base(alvo: str) -> str:
     return candidatos[0]
 
 
-def _preparar_wordlist_fast(wordlist_original: str, dest_path: str, limite_extra: int = 2500) -> str:
-    """Cria uma wordlist priorizada para o fast_scan garantindo rotas críticas no topo."""
+def _preparar_wordlist(wordlist_original: str, dest_path: str, limite_extra: int = 2500) -> str:
+    """Cria uma wordlist priorizada e higienizada garantindo rotas críticas no topo."""
     vistas = set()
     linhas_finais: List[str] = []
 
@@ -117,7 +122,13 @@ def _preparar_wordlist_fast(wordlist_original: str, dest_path: str, limite_extra
             adicionadas = 0
             for linha in f:
                 p = linha.strip()
-                if not p or p.startswith("#") or p in vistas:
+                if (
+                    not p
+                    or p.startswith(("#", "!", "?"))
+                    or "%%" in p
+                    or "${" in p
+                    or p in vistas
+                ):
                     continue
                 vistas.add(p)
                 linhas_finais.append(p)
@@ -239,10 +250,11 @@ async def run_ffuf(alvo: str, tipo_scan: str = "fast_scan") -> Dict[str, Any]:
     run_id = uuid.uuid4().hex
     temp_filename = os.path.join(base_dir, f"ffuf_out_{run_id}.json")
     temp_wordlist = os.path.join(base_dir, f"ffuf_wl_{run_id}.txt")
-    wordlist_ativa = wordlist
-
-    if tipo_scan != "deep_scan":
-        wordlist_ativa = _preparar_wordlist_fast(wordlist, temp_wordlist)
+    wordlist_ativa = _preparar_wordlist(
+        wordlist,
+        temp_wordlist,
+        limite_extra=8000 if tipo_scan == "deep_scan" else 2500,
+    )
 
     # Monta comando do ffuf com auto-calibração (-ac) para eliminar wildcards/soft-404s
     if tipo_scan == "deep_scan":
@@ -254,8 +266,8 @@ async def run_ffuf(alvo: str, tipo_scan: str = "fast_scan") -> Dict[str, Any]:
             "-e", ".php,.html,.txt,.bak,.env",
             "-mc", "200,204,301,302,307,401,403",
             "-ac",
-            "-maxtime", "120",
-            "-timeout", "5",
+            "-maxtime", "90",
+            "-timeout", "4",
             "-o", temp_filename,
             "-of", "json",
             "-s"
@@ -280,8 +292,11 @@ async def run_ffuf(alvo: str, tipo_scan: str = "fast_scan") -> Dict[str, Any]:
         resultado = await asyncio.to_thread(
             subprocess.run,
             comando,
+            stdin=subprocess.DEVNULL,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=900.0
         )
 

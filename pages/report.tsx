@@ -249,7 +249,9 @@ interface RawFfufItem {
 
 interface RawNucleiItem {
   'template-id'?: string;
+  'matcher-name'?: string;
   'matched-at'?: string;
+  'extracted-results'?: string[];
   host?: string;
   info?: {
     severity?: string;
@@ -441,7 +443,7 @@ function formatReportData(rawData: RawConsolidatedReport | null | undefined): Re
       if (!item) continue;
       discoveredRoutes++;
       const pathUrl = item.url || item.input?.FUZZ || item.path || '';
-      const pathLower = String(pathUrl).toLowerCase();
+      const pathLower = String(pathUrl).split('?')[0].toLowerCase();
       const statusHttp = Number(item.status || 200);
       const isAccessible2xx = statusHttp >= 200 && statusHttp < 300;
       const isProtected4xx = statusHttp === 401 || statusHttp === 403;
@@ -521,14 +523,26 @@ function formatReportData(rawData: RawConsolidatedReport | null | undefined): Re
       else if (rawSev.includes('low') || rawSev.includes('baix')) severity = 'Baixo';
       else if (rawSev.includes('info')) severity = 'Info';
 
+      const baseId = item['template-id'] || `CVE-${findings.length + 1}`;
+      const matcher = item['matcher-name'];
+      const extracted = Array.isArray(item['extracted-results']) && item['extracted-results'].length > 0
+        ? item['extracted-results'].join(', ')
+        : '';
+      const rawTitle = item.info?.name || item['template-id'] || 'Vulnerabilidade Catalogada';
+      const title = matcher ? `${rawTitle} (${matcher})` : rawTitle;
+      const baseDesc =
+        item.info?.description ||
+        'Vulnerabilidade ou exposição confirmada por assinatura de template do Nuclei.';
+      const details = extracted
+        ? `${baseDesc}\n\nValores extraídos: ${extracted}`
+        : baseDesc;
+
       findings.push({
-        id: item['template-id'] || `CVE-${findings.length + 1}`,
-        title: item.info?.name || item['template-id'] || 'Vulnerabilidade Catalogada',
+        id: `${baseId}-${findings.length + 1}`,
+        title,
         severity,
         endpoint: item['matched-at'] || item.host || alvo,
-        details:
-          item.info?.description ||
-          'Vulnerabilidade confirmada por assinatura de template do Nuclei.',
+        details,
         recommendation:
           item.info?.remediation ||
           'Aplique as atualizações de segurança do fornecedor ou mitigue o vetor afetado conforme boletim da CVE correspondente.',
@@ -1249,11 +1263,7 @@ export default function ReportPage() {
                   <h3 className="text-xl font-semibold text-white group-hover:text-zinc-200 transition-colors">
                     Achados das Ferramentas
                   </h3>
-                  <span
-                    className={`text-xs px-2.5 py-0.5 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-300 ${jetBrainsMono.className}`}
-                  >
-                    {filteredFindings.length}
-                  </span>
+                  
                   {isTableExpanded ? (
                     <ChevronUp className="w-5 h-5 text-zinc-500 group-hover:text-white transition-colors" />
                   ) : (
