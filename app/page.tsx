@@ -6,7 +6,7 @@ import { Botao } from "./submit";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
 import { FeatureRow } from "../components/FeatureRow";
-import { ScannerLoader } from "../components/ScannerLoader";
+import { ScannerLoader, ToolStepData } from "../components/ScannerLoader";
 import { AuditReportVisual } from "../components/AuditReportVisual";
 import { SequentialPipelineVisual } from "../components/SequentialPipelineVisual";
 import { ShieldAlert, Terminal, ArrowRight } from "lucide-react";
@@ -63,6 +63,22 @@ export default function Home() {
   const [searchActive, setSearchActive] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [urlError, setUrlError] = useState<string | null>(null);
+  const [stepsStatus, setStepsStatus] = useState<Record<string, ToolStepData>>({});
+  const [activeMessage, setActiveMessage] = useState<string>("");
+
+  const handleStepUpdate = (evt: { etapa: string; status: "pending" | "running" | "completed" | "error"; mensagem?: string; resultado?: any }) => {
+    setStepsStatus((prev) => ({
+      ...prev,
+      [evt.etapa]: {
+        status: evt.status,
+        mensagem: evt.mensagem,
+        resultado: evt.resultado,
+      },
+    }));
+    if (evt.mensagem) {
+      setActiveMessage(evt.mensagem);
+    }
+  };
 
   const tooltipRef = useRef<HTMLDivElement>(null);
 
@@ -280,7 +296,29 @@ export default function Home() {
                       isDeepScan={isDeepScan}
                       disabled={!/^(?:https?:\/\/)?(?:(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}|(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)|localhost)(?::\d{1,5})?(?:\/.*)?$/.test(textUrl.trim())}
                       onErrorChange={setUrlError}
-                      onScanChange={(scanning) => { setIsScanning(scanning); if(scanning) setSearchActive(true); }}
+                      onStepUpdate={handleStepUpdate}
+                      onScanComplete={(relatorio) => {
+                        console.log("Relatório final consolidado:", relatorio);
+                        try {
+                          if (relatorio) {
+                            localStorage.setItem("vulscan_latest_report", JSON.stringify(relatorio));
+                          }
+                        } catch (e) {
+                          console.error("Erro ao persistir relatório no localStorage:", e);
+                        }
+                        // Redireciona com pequeno intervalo para visualização da conclusão bem-sucedida
+                        setTimeout(() => {
+                          window.location.href = "/report";
+                        }, 1200);
+                      }}
+                      onScanChange={(scanning) => {
+                        setIsScanning(scanning);
+                        if (scanning) {
+                          setSearchActive(true);
+                          setStepsStatus({});
+                          setActiveMessage("");
+                        }
+                      }}
                     />
                   </div>
                 </div>
@@ -295,7 +333,7 @@ export default function Home() {
                       className="flex items-center justify-center gap-2 mt-3 text-red-400 text-sm font-medium"
                       role="alert"
                     >
-                    
+                      <ShieldAlert className="w-4 h-4 shrink-0 text-red-500" />
                       <span>{urlError}</span>
                     </motion.div>
                   )}
@@ -307,11 +345,17 @@ export default function Home() {
             <motion.div
               layout
               initial={false}
-              animate={{ height: isScanning ? 160 : 0, opacity: isScanning ? 1 : 0 }}
-              transition={{ duration: 1.5, ease: [0.22, 1, 0.36, 1] }}
-              className="w-full max-w-3xl flex justify-center items-start overflow-hidden pt-4"
+              animate={{ height: isScanning ? "auto" : 0, opacity: isScanning ? 1 : 0 }}
+              transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
+              className="w-full max-w-4xl flex justify-center items-start overflow-hidden pt-4"
             >
-              {isScanning && <ScannerLoader isDeepScan={isDeepScan} />}
+              {isScanning && (
+                <ScannerLoader
+                  isDeepScan={isDeepScan}
+                  stepsStatus={stepsStatus}
+                  activeMessage={activeMessage}
+                />
+              )}
             </motion.div>
           </motion.div>
         </main>
